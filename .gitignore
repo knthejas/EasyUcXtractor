@@ -1,0 +1,40 @@
+# Python environments and bytecode
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Editors and logs
+.vscode/
+.idea/
+*.log
+
+# Datasheets are vendor-controlled local inputs; never add PDFs to Git
+*.pdf
+data/pdfs/*.pdf
+data/pdfs/**/*.pdf
+
+# Generated extraction and retrieval artifacts
+data/extracted/*
+!data/extracted/.gitkeep
+data/knowledge_base/*
+!data/knowledge_base/.gitkeep
+
+# Local-only planning/reference notes retained from development
+docs/reference/
+docs/local_notes/
+
+# Local scratch output
+validation_report.json
+output.json
+output.md
+knowledge_base.jsonl
+parameters.jsonl
+figures.jsonl
+figures/

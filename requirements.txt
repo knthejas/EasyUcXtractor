@@ -1,0 +1,4 @@
+docling==2.129.0
+docling-core==2.98.0
+pypdfium2==5.13.0
+Pillow==12.3.0
