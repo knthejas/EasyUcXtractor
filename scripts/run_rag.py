@@ -7,7 +7,7 @@ from pathlib import Path
 from _bootstrap import ROOT
 sys.path.insert(0, str(ROOT / "src"))
 
-from easyucxtractor.llm.ollama_client import answer_from_evidence
+from easyucxtractor.llm.ollama_client import answer_from_evidence, small_talk_response
 from easyucxtractor.paths import KNOWLEDGE_DIR
 from easyucxtractor.retrieval.bm25_retriever import load_chunks, retrieve, source_label
 
@@ -35,6 +35,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--show-evidence", action="store_true", help="Print retrieved excerpts before the answer")
     args = parser.parse_args(argv)
     question = " ".join(args.question).strip() or input("Ask a datasheet question: ").strip()
+    small_talk = small_talk_response(question)
+    if small_talk:
+        print(f"Question: {question}\nConversation\n")
+        print(small_talk)
+        return 0
     dataset = find_dataset(args.datasheet)
     chunks = load_chunks(dataset / "knowledge_base.jsonl", dataset / "parameters.jsonl")
     results = retrieve(question, chunks)

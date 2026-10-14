@@ -115,6 +115,45 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertEqual(answer, "I could not find supporting evidence in the indexed datasheet.")
         transport.assert_not_called()
 
+    def test_standalone_greeting_gets_conversational_reply_without_evidence(self):
+        answer = ollama_client.answer_from_evidence("hello", [])
+        self.assertIn("Hello!", answer)
+        self.assertIn("datasheet", answer)
+
+    def test_board_name_question_abstains_when_evidence_only_gives_dimensions(self):
+        caption = dict(self.chunk, page=272, section="14.3 Thermal Behavior of Package",
+                       chunk_id="board-caption", content="Figure82 Board Setup")
+        setup = dict(self.chunk, page=272, section="14.3 Thermal Behavior of Package",
+                     chunk_id="board-setup", content=(
+                         "Board setup is defined according to JESD 51-2, -5, -7. "
+                         "Board: 76.2 x 114.3 x 1.5 mm with thermal via array and cooling area."
+                     ))
+        unrelated = dict(self.chunk, page=83, section="Pull-Up / Pull-Down Resistor",
+                          chunk_id="unrelated", content="Tie an unused wake input to GND on board.")
+        with patch.object(ollama_client, "llm_settings", return_value=(
+                "http://localhost:11434", "qwen2.5:3b", None)):
+            with patch.object(ollama_client, "urlopen") as transport:
+                answer = ollama_client.answer_from_evidence(
+                    "What is the name of the board?",
+                    [(3.0, caption), (2.0, setup), (1.0, unrelated)])
+        self.assertIn("does not give the board a product or evaluation-board name", answer)
+        self.assertIn("generic JEDEC thermal-characterization test board", answer)
+        self.assertIn(source_label(caption), answer)
+        self.assertIn(source_label(setup), answer)
+        self.assertNotIn(source_label(unrelated), answer)
+        transport.assert_not_called()
+
+    def test_explicit_board_name_evidence_can_reach_model(self):
+        board_chunk = dict(self.chunk, content="Board name: Eval Board A.")
+        body = b'{"choices": [{"message": {"content": "The board name is Eval Board A."}}]}'
+        with patch.object(ollama_client, "llm_settings", return_value=(
+                "http://localhost:11434", "qwen2.5:3b", None)):
+            with patch.object(ollama_client, "urlopen", return_value=self.response(body)) as transport:
+                answer = ollama_client.answer_from_evidence(
+                    "What is the name of the board?", [(1.0, board_chunk)])
+        self.assertIn("Eval Board A", answer)
+        transport.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

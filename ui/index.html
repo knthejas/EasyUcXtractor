@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f5f2">
+  <title>EasyUcXtractor | Datasheet workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #f2f5f2;
+      --paper: #ffffff;
+      --ink: #16221d;
+      --muted: #6c7972;
+      --line: #dce4de;
+      --green: #126a52;
+      --green-dark: #0d4e3d;
+      --lime: #c7f36a;
+      --coral: #e47456;
+      --shadow: 0 16px 38px rgba(30, 53, 42, .07);
+      --sans: "Manrope", "Segoe UI", sans-serif;
+      --mono: "DM Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--sans); min-height: 100vh; }
+    button, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
+    .rail { background: #17231e; color: #f5f8f5; padding: 25px 17px 18px; display: flex; flex-direction: column; gap: 28px; }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 0 10px; }
+    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; color: #17231e; background: var(--lime); border-radius: 10px; font-size: 17px; font-weight: 800; }
+    .brand-name { font-size: 14px; font-weight: 800; letter-spacing: 0; }
+    .brand-kicker { margin-top: 2px; color: #aab9b0; font: 10px var(--mono); letter-spacing: 0; }
+    .rail-label { color: #96a79c; text-transform: uppercase; letter-spacing: 0; font: 10px var(--mono); padding: 0 10px; margin-bottom: 9px; }
+    .dataset-select { width: 100%; min-height: 45px; border: 1px solid #3b4a42; background: #202f28; border-radius: 9px; color: #f5f8f5; padding: 0 11px; font-size: 12px; outline-color: var(--lime); }
+    .dataset-meta { color: #aab9b0; font-size: 11px; line-height: 1.55; padding: 10px 10px 0; overflow-wrap: anywhere; }
+    .rail-spacer { flex: 1; }
+    .service { display: flex; align-items: center; gap: 10px; border-top: 1px solid #34433b; padding: 17px 10px 4px; }
+    .status-dot { width: 9px; height: 9px; background: #e9aa55; border-radius: 50%; box-shadow: 0 0 0 4px rgba(233,170,85,.12); flex: 0 0 auto; }
+    .status-dot.online { background: #a7e45f; box-shadow: 0 0 0 4px rgba(167,228,95,.13); }
+    .status-copy { font-size: 11px; line-height: 1.5; }
+    .status-copy strong { display: block; color: #f5f8f5; font-size: 11px; }
+    .status-copy span { color: #aab9b0; }
+    .main { min-width: 0; display: flex; flex-direction: column; padding: 25px clamp(20px, 4vw, 58px) 40px; }
+    .topbar { max-width: 1060px; width: 100%; margin: 0 auto 44px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .crumb { color: var(--muted); font: 11px var(--mono); }
+    .top-right { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; }
+    .local-tag { display: inline-flex; align-items: center; gap: 7px; background: #e5efe8; color: var(--green-dark); border: 1px solid #d0e2d6; border-radius: 999px; padding: 7px 11px; font-size: 10px; font-weight: 700; }
+    .local-tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .content { max-width: 920px; width: 100%; margin: 0 auto; flex: 1; }
+    .hero { position: relative; margin-bottom: 27px; padding: 9px 0 8px; }
+    .hero:after { content: ""; position: absolute; right: 4%; top: 12px; width: 94px; height: 94px; border: 1px solid #cbd8cf; border-radius: 50%; box-shadow: 13px 0 0 -1px var(--canvas), 13px 0 0 0 #cbd8cf; opacity: .72; pointer-events: none; }
+    .eyebrow { color: var(--green); font: 11px var(--mono); margin-bottom: 13px; }
+    h1 { font-size: clamp(31px, 4vw, 47px); max-width: 670px; line-height: 1.08; letter-spacing: 0; margin: 0; font-weight: 800; }
+    .hero p { color: var(--muted); font-size: 13px; margin: 14px 0 0; max-width: 590px; line-height: 1.65; }
+    .prompt-panel { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 15px; }
+    .prompt-top { display: flex; gap: 12px; align-items: center; padding: 0 3px 10px; color: var(--muted); font-size: 10px; }
+    .prompt-top .key { margin-left: auto; font: 10px var(--mono); color: #87938c; }
+    textarea { display: block; width: 100%; min-height: 83px; resize: vertical; border: 0; outline: none; background: transparent; color: var(--ink); font-size: 14px; line-height: 1.6; padding: 5px 4px 10px; }
+    textarea::placeholder { color: #99a49e; }
+    .prompt-actions { border-top: 1px solid #edf1ee; padding: 12px 2px 1px; display: flex; align-items: center; gap: 10px; }
+    .prompt-hint { color: var(--muted); font-size: 10px; flex: 1; }
+    .check { display: inline-flex; align-items: center; gap: 6px; color: #5f6e65; font-size: 10px; cursor: pointer; user-select: none; }
+    .check input { accent-color: var(--green); margin: 0; }
+    .ask { border: 0; border-radius: 8px; background: var(--green); color: white; padding: 10px 15px; min-width: 112px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 11px; font-weight: 800; transition: background .15s, transform .15s; }
+    .ask:hover { background: var(--green-dark); transform: translateY(-1px); }
+    .ask:disabled { opacity: .6; cursor: wait; transform: none; }
+    .examples { margin: 20px 0 34px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .section-title { color: #59675f; font-size: 11px; font-weight: 800; }
+    .section-note { color: #8b9790; font: 9px var(--mono); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { border: 1px solid var(--line); background: rgba(255,255,255,.54); color: #43534a; border-radius: 999px; padding: 8px 11px; font-size: 10px; transition: border .15s, background .15s; }
+    .chip:hover { border-color: #8ebaa6; background: white; }
+    .result { display: none; margin-top: 30px; animation: rise .3s ease both; }
+    .result.show { display: block; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .result-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+    .result-heading h2 { font-size: 16px; margin: 0; letter-spacing: 0; }
+    .answer-badge { color: var(--green-dark); background: #e3f1e7; border-radius: 999px; padding: 6px 9px; font: 9px var(--mono); }
+    .answer { background: var(--paper); border: 1px solid var(--line); border-left: 3px solid var(--green); border-radius: 10px; padding: 17px 19px; white-space: pre-wrap; font-size: 13px; line-height: 1.75; box-shadow: 0 8px 24px rgba(30,53,42,.04); overflow-wrap: anywhere; }
+    .answer-sources { display: none; margin-top: 9px; padding: 12px 15px; background: #e9f1eb; border: 1px solid #d6e3d9; border-radius: 9px; }
+    .answer-sources.show { display: block; }
+    .answer-sources-title { color: #547064; text-transform: uppercase; font: 9px var(--mono); margin-bottom: 7px; }
+    .answer-source { color: #315e4b; font: 9px/1.65 var(--mono); overflow-wrap: anywhere; }
+    .evidence { margin-top: 13px; border: 1px solid var(--line); background: rgba(255,255,255,.55); border-radius: 10px; overflow: hidden; }
+    .evidence summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 9px; padding: 13px 15px; color: #405047; font-size: 11px; font-weight: 800; }
+    .evidence summary::-webkit-details-marker { display: none; }
+    .evidence summary:before { content: "+"; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; background: #e5eee8; color: var(--green); font: 14px var(--mono); }
+    .evidence[open] summary:before { content: "−"; }
+    .evidence-count { margin-left: auto; color: #849189; font: 9px var(--mono); font-weight: 400; }
+    .evidence-list { padding: 0 12px 12px; display: grid; gap: 8px; }
+    .evidence-item { background: white; border: 1px solid #e6ece7; border-radius: 8px; padding: 11px 12px; }
+    .source { color: var(--green-dark); font: 9px/1.6 var(--mono); overflow-wrap: anywhere; }
+    .evidence-text { color: #536158; font-size: 10px; line-height: 1.6; margin-top: 5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .empty-evidence { color: var(--muted); font-size: 11px; padding: 0 4px 8px; }
+    .error { display:none; margin-top: 13px; padding: 11px 13px; border: 1px solid #f0c8b9; border-radius: 8px; background: #fff4ef; color: #8f3e2b; font-size: 11px; line-height: 1.5; }
+    .error.show { display:block; }
+    .footer { max-width: 920px; width: 100%; margin: 42px auto 0; padding-top: 14px; border-top: 1px solid #dce4de; display: flex; justify-content: space-between; color: #829087; font: 9px var(--mono); gap: 12px; }
+    .footer span:last-child { text-align: right; }
+    @media (max-width: 760px) {
+      .app { grid-template-columns: 1fr; }
+      .rail { padding: 14px 17px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+      .brand { padding: 0; }
+      .rail-dataset { grid-column: 1 / -1; }
+      .rail-label { padding: 0; margin-bottom: 6px; }
+      .dataset-meta { padding: 7px 0 0; }
+      .rail-spacer { display: none; }
+      .service { padding: 0; border: 0; justify-self: end; }
+      .main { padding: 16px 16px 27px; }
+      .topbar { margin-bottom: 28px; }
+      .hero:after { width: 56px; height: 56px; right: 8px; top: 18px; opacity: .45; }
+      h1 { max-width: 85%; font-size: 34px; }
+      .prompt-actions { flex-wrap: wrap; }
+      .prompt-hint { min-width: 100%; order: 2; }
+      .ask { margin-left: auto; }
+      .footer { margin-top: 32px; }
+    }
+    @media (max-width: 420px) {
+      .top-right .local-label { display: none; }
+      .chip { font-size: 9px; }
+      .answer { padding: 14px; }
+      .footer { flex-direction: column; }
+      .footer span:last-child { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="rail">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">E</div>
+        <div><div class="brand-name">EasyUcXtractor</div><div class="brand-kicker">LOCAL DATASHEET WORKSPACE</div></div>
+      </div>
+      <section class="rail-dataset" aria-label="Datasheet selection">
+        <div class="rail-label">ACTIVE DATASHEET</div>
+        <select class="dataset-select" id="datasetSelect" aria-label="Choose datasheet" disabled>
+          <option>Loading datasheets…</option>
+        </select>
+        <div class="dataset-meta" id="datasetMeta">Looking for processed knowledge bases.</div>
+      </section>
+      <div class="rail-spacer"></div>
+      <div class="service" aria-live="polite">
+        <span class="status-dot" id="statusDot"></span>
+        <div class="status-copy"><strong id="statusTitle">Checking Ollama</strong><span id="statusDetail">Local model status</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb">WORKSPACE <span aria-hidden="true">/</span> DATASHEET Q&amp;A</div>
+        <div class="top-right"><span class="local-tag"><i></i><span class="local-label">LOCAL INFERENCE</span></span></div>
+      </header>
+
+      <div class="content">
+        <section class="hero">
+          <div class="eyebrow">EVIDENCE-FIRST ENGINEERING SEARCH</div>
+          <h1>Ask the datasheet.<br>Check the source.</h1>
+          <p>Search extracted specifications and ask the local model to explain the retrieved evidence. Page and section references stay attached to every result.</p>
+        </section>
+
+        <form class="prompt-panel" id="questionForm">
+          <div class="prompt-top"><span>YOUR QUESTION</span><span class="key">ENTER TO RUN · SHIFT + ENTER FOR NEW LINE</span></div>
+          <textarea id="questionInput" placeholder="Ask about a parameter, limit, interface, or feature…" aria-label="Your datasheet question" required></textarea>
+          <div class="prompt-actions">
+            <span class="prompt-hint">Answers are grounded in retrieved datasheet excerpts.</span>
+            <label class="check"><input type="checkbox" id="showEvidence" checked> Show evidence</label>
+            <button class="ask" id="askButton" type="submit"><span>Ask question</span><span aria-hidden="true">↗</span></button>
+          </div>
+        </form>
+        <div class="error" id="errorBox" role="alert"></div>
+
+        <section class="examples" aria-label="Example questions">
+          <div class="section-head"><span class="section-title">Try a question</span><span class="section-note">CLICK TO FILL</span></div>
+          <div class="chips">
+            <button class="chip" type="button" data-question="What is the junction temperature range?">Junction temperature</button>
+            <button class="chip" type="button" data-question="What is the operating supply voltage?">Operating supply</button>
+            <button class="chip" type="button" data-question="How many half-bridges are available?">Half-bridges</button>
+            <button class="chip" type="button" data-question="What is the maximum PWM frequency?">PWM frequency</button>
+            <button class="chip" type="button" data-question="Does this IC support Ethernet?">Ethernet support</button>
+          </div>
+        </section>
+
+        <section class="result" id="resultSection" aria-live="polite">
+          <div class="result-heading"><h2>Answer</h2><span class="answer-badge">LOCAL MODEL + RETRIEVED EVIDENCE</span></div>
+          <div class="answer" id="answerText"></div>
+          <div class="answer-sources" id="answerSources"><div class="answer-sources-title">Retrieved source labels · verify relevance</div><div id="answerSourceList"></div></div>
+          <details class="evidence" id="evidenceDetails" open>
+            <summary><span>Retrieved evidence</span><span class="evidence-count" id="evidenceCount"></span></summary>
+            <div class="evidence-list" id="evidenceList"></div>
+          </details>
+        </section>
+      </div>
+      <footer class="footer"><span>EasyUcXtractor · local-first prototype</span><span>Verify critical values against the original PDF.</span></footer>
+    </main>
+  </div>
+  <script>
+    const datasetSelect = document.querySelector('#datasetSelect');
+    const datasetMeta = document.querySelector('#datasetMeta');
+    const questionInput = document.querySelector('#questionInput');
+    const questionForm = document.querySelector('#questionForm');
+    const askButton = document.querySelector('#askButton');
+    const resultSection = document.querySelector('#resultSection');
+    const answerText = document.querySelector('#answerText');
+    const answerBadge = document.querySelector('.answer-badge');
+    const answerSources = document.querySelector('#answerSources');
+    const answerSourceList = document.querySelector('#answerSourceList');
+    const evidenceList = document.querySelector('#evidenceList');
+    const evidenceCount = document.querySelector('#evidenceCount');
+    const errorBox = document.querySelector('#errorBox');
+    let datasets = [];
+
+    document.querySelectorAll('[data-question]').forEach(button => {
+      button.addEventListener('click', () => {
+        questionInput.value = button.dataset.question;
+        questionInput.focus();
+      });
+    });
+
+    questionInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        questionForm.requestSubmit();
+      }
+    });
+
+    function setStatus(status) {
+      const dot = document.querySelector('#statusDot');
+      const title = document.querySelector('#statusTitle');
+      const detail = document.querySelector('#statusDetail');
+      dot.classList.toggle('online', Boolean(status.available));
+      title.textContent = status.available ? 'Ollama connected' : 'Evidence mode ready';
+      detail.textContent = status.available
+        ? `${status.model} · localhost`
+        : 'Ollama unavailable · citations still available';
+    }
+
+    async function loadStatus() {
+      try {
+        const response = await fetch('/api/status');
+        setStatus(await response.json());
+      } catch (_) {
+        setStatus({available: false, model: 'Ollama'});
+      }
+    }
+
+    async function loadDatasets() {
+      datasetSelect.disabled = true;
+      try {
+        const response = await fetch('/api/datasets');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not load datasheets.');
+        datasets = data.datasets;
+        datasetSelect.replaceChildren();
+        if (!datasets.length) {
+          datasetSelect.add(new Option('No processed datasheets', ''));
+          datasetMeta.textContent = 'Add a PDF to data/pdfs/ and run the extraction script.';
+          return;
+        }
+        for (const dataset of datasets) datasetSelect.add(new Option(dataset.label, dataset.id));
+        datasetSelect.disabled = datasets.length < 2;
+        updateDatasetMeta();
+      } catch (error) {
+        datasetSelect.replaceChildren(new Option('Could not load datasheets', ''));
+        datasetMeta.textContent = error.message;
+      }
+    }
+
+    function updateDatasetMeta() {
+      const selected = datasets.find(item => item.id === datasetSelect.value) || datasets[0];
+      if (!selected) return;
+      datasetMeta.textContent = `${selected.chunk_count.toLocaleString()} searchable records · ${selected.id}`;
+    }
+    datasetSelect.addEventListener('change', updateDatasetMeta);
+
+    function renderEvidence(items, mode) {
+      evidenceList.replaceChildren();
+      evidenceCount.textContent = `${items.length} SOURCES`;
+      if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-evidence';
+        empty.textContent = mode === 'conversation'
+          ? 'No datasheet lookup was needed for this message.'
+          : 'No supporting passages were retrieved.';
+        evidenceList.append(empty);
+        return;
+      }
+      for (const item of items) {
+        const card = document.createElement('article');
+        card.className = 'evidence-item';
+        const source = document.createElement('div');
+        source.className = 'source';
+        source.textContent = item.source;
+        const text = document.createElement('div');
+        text.className = 'evidence-text';
+        text.textContent = item.content;
+        card.append(source, text);
+        evidenceList.append(card);
+      }
+    }
+
+    function renderAnswer(rawAnswer) {
+      const markers = [
+        'Retrieved source labels (ranked; verify relevance):',
+        'Relevant source labels:'
+      ];
+      const marker = markers.find(value => rawAnswer.includes(value));
+      answerSources.classList.remove('show');
+      answerSourceList.replaceChildren();
+      if (!marker) {
+        answerText.textContent = rawAnswer;
+        return;
+      }
+      const [answer, labelsText] = rawAnswer.split(marker, 2);
+      answerText.textContent = answer.trim();
+      const labels = labelsText.split('\n').map(value => value.trim()).filter(Boolean);
+      for (const label of labels) {
+        const item = document.createElement('div');
+        item.className = 'answer-source';
+        item.textContent = label;
+        answerSourceList.append(item);
+      }
+      answerSources.classList.toggle('show', labels.length > 0);
+    }
+
+    questionForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const question = questionInput.value.trim();
+      if (!question) return;
+      errorBox.classList.remove('show');
+      askButton.disabled = true;
+      askButton.querySelector('span').textContent = 'Searching…';
+      resultSection.classList.add('show');
+      answerText.textContent = 'Retrieving evidence and preparing an answer…';
+      evidenceList.replaceChildren();
+      evidenceCount.textContent = '';
+      try {
+        const response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({question, dataset_id: datasetSelect.value, show_evidence: document.querySelector('#showEvidence').checked})
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'The request failed.');
+        answerBadge.textContent = data.mode === 'conversation'
+          ? 'GENERAL CONVERSATION'
+          : 'LOCAL MODEL + RETRIEVED EVIDENCE';
+        renderAnswer(data.answer);
+        renderEvidence(data.evidence || [], data.mode);
+        const details = document.querySelector('#evidenceDetails');
+        details.open = document.querySelector('#showEvidence').checked;
+        resultSection.scrollIntoView({behavior: 'smooth', block: 'start'});
+      } catch (error) {
+        resultSection.classList.remove('show');
+        errorBox.textContent = error.message;
+        errorBox.classList.add('show');
+      } finally {
+        askButton.disabled = false;
+        askButton.querySelector('span').textContent = 'Ask question';
+      }
+    });
+
+    loadDatasets();
+    loadStatus();
+  </script>
+</body>
+</html>
