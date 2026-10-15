@@ -25,6 +25,12 @@ data/extracted/*
 !data/extracted/.gitkeep
 data/knowledge_base/*
 !data/knowledge_base/.gitkeep
+data/library/*
+!data/library/.gitkeep
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
 
 # Local-only planning/reference notes retained from development
 docs/reference/

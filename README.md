@@ -30,6 +30,7 @@ EasyUcXtractor/
 ├── src/easyucxtractor/
 │   ├── __init__.py
 │   ├── config.py
+│   ├── library.py
 │   ├── paths.py
 │   ├── validation.py
 │   ├── extraction/
@@ -46,15 +47,20 @@ EasyUcXtractor/
 ├── scripts/
 │   ├── _bootstrap.py
 │   ├── extract_datasheet.py
+│   ├── serve_app.py
 │   └── run_rag.py
 ├── tests/
 │   ├── __init__.py
 │   ├── test_paths.py
-│   └── test_rag_demo.py
+│   ├── test_rag_demo.py
+│   ├── test_library.py
+│   └── test_web_app.py
+├── ui/index.html
 ├── data/
 │   ├── pdfs/.gitkeep
 │   ├── extracted/.gitkeep
-│   └── knowledge_base/.gitkeep
+│   ├── knowledge_base/.gitkeep
+│   └── library/.gitkeep
 └── docs/architecture.md
 ```
 
@@ -117,6 +123,53 @@ python scripts/extract_datasheet.py --reuse-extraction
 This reuses the existing Docling JSON, recrops figures, rebuilds the knowledge and parameter JSONL files, and validates them. It does not perform a fresh PDF-to-Docling conversion.
 
 ## Ask Questions with RAG
+
+### Upload and Local Library
+
+Start the browser interface from the repository root:
+
+```powershell
+python scripts/serve_app.py
+```
+
+Open `http://127.0.0.1:8765/`. Drag one PDF onto the upload area or use **Choose PDF**. The sidebar displays saved documents, their processing stages, and retry controls for failed documents. Select a ready datasheet to scope questions to that document. Greetings work without selecting a document or running a model.
+
+The browser displays byte-upload progress, then backend stages: queued, extract, figures, knowledge, parameters, validate, and ready. PDF extraction uses an animated indeterminate bar because Docling does not provide page-level progress here. Later percentages are stage milestones, not per-page estimates. A document is marked ready only after the existing pipeline writes all required outputs and validation passes. Uploads are limited to 50 MB; invalid or encrypted/unreadable PDFs are rejected.
+
+Uploaded documents are stored locally and excluded from Git:
+
+```text
+data/library/registry.sqlite3
+data/library/server.lock
+data/library/<full-sha256>/original.pdf
+data/library/<full-sha256>/processing.log
+data/library/<full-sha256>/extracted/output.json
+data/library/<full-sha256>/extracted/output.md
+data/library/<full-sha256>/extracted/figures.jsonl
+data/library/<full-sha256>/extracted/figures/*.png
+data/library/<full-sha256>/knowledge_base/knowledge_base.jsonl
+data/library/<full-sha256>/knowledge_base/parameters.jsonl
+data/library/<full-sha256>/knowledge_base/validation_report.json
+```
+
+Identity uses the SHA-256 of file contents, not the filename. Uploading the same bytes again reuses a ready document or returns the existing processing job; failed documents have an explicit **Retry extraction** action. Only one extraction job runs at a time. The registry survives restarts; interrupted jobs become failed with an actionable retry message. A lock prevents two UI servers from using the same library concurrently. Close the server with Ctrl+C; graceful shutdown waits for queued jobs to finish.
+
+Existing CLI-generated datasets under `data/knowledge_base/` remain selectable and CLI commands keep their previous output locations. Uploaded-library documents are selected in the web UI; they are not automatically added to the CLI dataset list. Switching documents clears the previous answer; stale responses from a previous selection are not displayed. No request accepts a filesystem path as a dataset selector.
+
+The local API endpoints are:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/datasets` | Library status plus existing CLI datasets, without output paths |
+| POST | `/api/upload` | Raw PDF body, `Content-Type: application/pdf`, URL-encoded `X-Filename` header |
+| GET | `/api/documents/<sha256>` | Saved metadata and processing status |
+| POST | `/api/documents/<sha256>/retry` | Retry a failed extraction; no new job for ready/processing documents |
+| POST | `/api/ask` | JSON question and exact selected `dataset_id`; only that document's chunks are loaded |
+| GET | `/api/status` | Current local Ollama availability |
+
+This server is loopback-only and has no authentication. Model availability is not required to store PDFs; if Ollama fails, datasheet questions return the existing evidence fallback. Remote clients, cloud storage, embeddings, and vector databases are not part of this feature.
+
+The reviewed junction-temperature check (-40 to 150 degrees Celsius) applies only when the document's opening text identifies TLE9563-3QX. Other datasheets still undergo all structural checks without inheriting that device-specific value. Validation does not certify extraction accuracy. Inspect the local processing log and validation report for failures; model-download/proxy problems can also block extraction.
 
 Ollama must be running and the configured model must be installed. Defaults are `http://localhost:11434` and `qwen2.5:3b`; no API key is required. For a fresh Ollama setup:
 

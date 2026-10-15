@@ -37,8 +37,11 @@ def validate_artifacts(output_json: Path, knowledge_jsonl: Path, parameters_json
                 warnings.append(f"non-figure knowledge chunk {index} has empty content")
         if not isinstance(chunk.get("page"), int) or chunk["page"] < 1:
             errors.append(f"knowledge chunk {index} has invalid page provenance")
-        if not chunk.get("document_id") or not chunk.get("section"):
-            errors.append(f"knowledge chunk {index} lacks document_id or section")
+        # Some valid content, especially cover pages, appears before the first
+        # section heading. Document identity and page provenance are required;
+        # section labels are optional when the source PDF has none.
+        if not chunk.get("document_id"):
+            errors.append(f"knowledge chunk {index} lacks document_id")
         if chunk.get("content_type") == "figure":
             image_path = ROOT / chunk.get("image_path", "")
             if not image_path.is_file():
@@ -58,7 +61,9 @@ def validate_artifacts(output_json: Path, knowledge_jsonl: Path, parameters_json
     figure_refs = {figure.get("source_ref") for figure in figures}
     if picture_refs != figure_refs:
         errors.append(f"figure coverage mismatch: {len(picture_refs - figure_refs)} missing, {len(figure_refs - picture_refs)} extra")
-    if not any(p.get("parameter") == "Junction Temperature" and p.get("min") == -40
+    opening_text = " ".join(item.get("text", "") for item in document.get("texts", [])[:50])
+    is_tle9563 = "TLE9563-3QX" in opening_text.upper()
+    if is_tle9563 and not any(p.get("parameter") == "Junction Temperature" and p.get("min") == -40
                and p.get("max") == 150 and p.get("unit") == "°C" for p in parameters):
         errors.append("known-fact check failed: junction temperature -40 to 150 °C not found")
     counts = {

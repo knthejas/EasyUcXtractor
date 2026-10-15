@@ -37,6 +37,23 @@
     .rail-label { color: #96a79c; text-transform: uppercase; letter-spacing: 0; font: 10px var(--mono); padding: 0 10px; margin-bottom: 9px; }
     .dataset-select { width: 100%; min-height: 45px; border: 1px solid #3b4a42; background: #202f28; border-radius: 9px; color: #f5f8f5; padding: 0 11px; font-size: 12px; outline-color: var(--lime); }
     .dataset-meta { color: #aab9b0; font-size: 11px; line-height: 1.55; padding: 10px 10px 0; overflow-wrap: anywhere; }
+    .upload-zone { border: 1px dashed #70877a; padding: 14px 12px; border-radius: 8px; background: #202f28; }
+    .upload-zone.dragging { border-color: var(--lime); background: #304536; }
+    .upload-zone strong { display: block; font-size: 12px; margin-bottom: 10px; }
+    .upload-button, .retry-button { border: 1px solid #63806e; background: #2c4235; color: #f5f8f5; border-radius: 6px; padding: 8px 10px; font-size: 11px; }
+    .upload-button:disabled { opacity: .5; }
+    .upload-message { font-size: 11px; line-height: 1.6; color: #c3d3c8; overflow-wrap: anywhere; margin-top: 10px; }
+    .upload-message.error-message { color: #ffb9a4; }
+    .upload-progress { width: 100%; margin-top: 9px; accent-color: var(--lime); }
+    .library-list { display: grid; gap: 6px; margin-top: 12px; max-height: 42vh; overflow-y: auto; }
+    .document-button { display: block; width: 100%; text-align: left; border: 1px solid #354c3e; border-radius: 6px; background: transparent; color: #dce8df; padding: 10px; }
+    .document-button.active { border-color: var(--lime); background: #2a4032; }
+    .document-name { display: block; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+    .document-status { display: block; font: 9px var(--mono); color: #a7bdaf; margin-top: 5px; }
+    .document-status.failed { color: #ffb9a4; }
+    .document-state { margin-top: 12px; }
+    .document-state progress { width: 100%; accent-color: var(--lime); }
+    .document-state p { color: #c3d3c8; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
     .rail-spacer { flex: 1; }
     .service { display: flex; align-items: center; gap: 10px; border-top: 1px solid #34433b; padding: 17px 10px 4px; }
     .status-dot { width: 9px; height: 9px; background: #e9aa55; border-radius: 50%; box-shadow: 0 0 0 4px rgba(233,170,85,.12); flex: 0 0 auto; }
@@ -106,6 +123,8 @@
       .rail { padding: 14px 17px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
       .brand { padding: 0; }
       .rail-dataset { grid-column: 1 / -1; }
+      .upload-zone { grid-column: 1 / -1; }
+      .library-list { max-height: 180px; }
       .rail-label { padding: 0; margin-bottom: 6px; }
       .dataset-meta { padding: 7px 0 0; }
       .rail-spacer { display: none; }
@@ -136,11 +155,20 @@
         <div><div class="brand-name">EasyUcXtractor</div><div class="brand-kicker">LOCAL DATASHEET WORKSPACE</div></div>
       </div>
       <section class="rail-dataset" aria-label="Datasheet selection">
-        <div class="rail-label">ACTIVE DATASHEET</div>
+        <div class="rail-label">DATASHEET LIBRARY</div>
         <select class="dataset-select" id="datasetSelect" aria-label="Choose datasheet" disabled>
           <option>Loading datasheets…</option>
         </select>
         <div class="dataset-meta" id="datasetMeta">Looking for processed knowledge bases.</div>
+        <div class="library-list" id="libraryList" aria-label="Saved datasheets"></div>
+        <div class="document-state" id="documentState" aria-live="polite"></div>
+      </section>
+      <section class="upload-zone" id="uploadZone" aria-label="Upload PDF">
+        <strong>Drop a PDF here</strong>
+        <input id="pdfInput" type="file" accept=".pdf,application/pdf" hidden>
+        <button class="upload-button" type="button" id="uploadButton">Choose PDF</button>
+        <progress class="upload-progress" id="uploadProgress" max="100" value="0" hidden></progress>
+        <div class="upload-message" id="uploadMessage" role="status">PDF, up to 50 MB</div>
       </section>
       <div class="rail-spacer"></div>
       <div class="service" aria-live="polite">
@@ -211,7 +239,17 @@
     const evidenceList = document.querySelector('#evidenceList');
     const evidenceCount = document.querySelector('#evidenceCount');
     const errorBox = document.querySelector('#errorBox');
+    const libraryList = document.querySelector('#libraryList');
+    const documentState = document.querySelector('#documentState');
+    const uploadZone = document.querySelector('#uploadZone');
+    const uploadButton = document.querySelector('#uploadButton');
+    const pdfInput = document.querySelector('#pdfInput');
+    const uploadProgress = document.querySelector('#uploadProgress');
+    const uploadMessage = document.querySelector('#uploadMessage');
     let datasets = [];
+    let librarySnapshot = '';
+    let loadingDatasets = false;
+    let uploading = false;
 
     document.querySelectorAll('[data-question]').forEach(button => {
       button.addEventListener('click', () => {
@@ -247,34 +285,176 @@
       }
     }
 
-    async function loadDatasets() {
-      datasetSelect.disabled = true;
+    async function loadDatasets(preferredId) {
+      if (loadingDatasets) return;
+      loadingDatasets = true;
+      const selectedId = preferredId || datasetSelect.value;
       try {
         const response = await fetch('/api/datasets');
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Could not load datasheets.');
+        const snapshot = JSON.stringify(data.datasets);
+        if (!preferredId && snapshot === librarySnapshot) return;
+        librarySnapshot = snapshot;
         datasets = data.datasets;
         datasetSelect.replaceChildren();
         if (!datasets.length) {
           datasetSelect.add(new Option('No processed datasheets', ''));
-          datasetMeta.textContent = 'Add a PDF to data/pdfs/ and run the extraction script.';
+          datasetSelect.disabled = true;
+          datasetMeta.textContent = 'No saved datasheets yet.';
+          libraryList.replaceChildren();
+          documentState.replaceChildren();
           return;
         }
         for (const dataset of datasets) datasetSelect.add(new Option(dataset.label, dataset.id));
+        if (datasets.some(item => item.id === selectedId)) datasetSelect.value = selectedId;
+        else datasetSelect.value = (datasets.find(item => item.status === 'ready') || datasets[0]).id;
         datasetSelect.disabled = datasets.length < 2;
         updateDatasetMeta();
       } catch (error) {
         datasetSelect.replaceChildren(new Option('Could not load datasheets', ''));
         datasetMeta.textContent = error.message;
+      } finally {
+        loadingDatasets = false;
       }
     }
 
     function updateDatasetMeta() {
       const selected = datasets.find(item => item.id === datasetSelect.value) || datasets[0];
       if (!selected) return;
-      datasetMeta.textContent = `${selected.chunk_count.toLocaleString()} searchable records · ${selected.id}`;
+      datasetMeta.textContent = selected.origin === 'library'
+        ? `${selected.pages} pages · ${selected.status}`
+        : `${selected.chunk_count.toLocaleString()} searchable records · CLI dataset`;
+      libraryList.replaceChildren();
+      for (const dataset of datasets) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'document-button';
+        button.classList.toggle('active', dataset.id === selected.id);
+        button.setAttribute('aria-pressed', String(dataset.id === selected.id));
+        const name = document.createElement('span');
+        name.className = 'document-name';
+        name.textContent = dataset.label;
+        const status = document.createElement('span');
+        status.className = `document-status ${dataset.status}`;
+        status.textContent = dataset.status === 'processing'
+          ? (dataset.stage === 'extract' ? 'Extracting PDF…' : `${dataset.stage} · ${dataset.progress}%`) : dataset.status;
+        button.append(name, status);
+        button.addEventListener('click', () => {
+          datasetSelect.value = dataset.id;
+          selectDataset();
+        });
+        libraryList.append(button);
+      }
+      documentState.replaceChildren();
+      if (selected.status === 'processing') {
+        const progress = document.createElement('progress');
+        progress.max = 100;
+        if (selected.stage !== 'extract') progress.value = selected.progress;
+        progress.setAttribute('aria-label', 'Extraction stage progress');
+        const stage = document.createElement('p');
+        stage.textContent = selected.stage === 'queued' ? 'Queued for processing'
+          : selected.stage === 'extract'
+            ? `Extracting ${selected.pages} pages. Table recognition can take several minutes; page-level progress is unavailable.`
+            : `Processing: ${selected.stage}`;
+        documentState.append(progress, stage);
+      } else if (selected.status === 'failed') {
+        const message = document.createElement('p');
+        message.textContent = selected.error;
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'retry-button';
+        retry.textContent = 'Retry extraction';
+        retry.addEventListener('click', async () => {
+          retry.disabled = true;
+          try {
+            const response = await fetch(`/api/documents/${selected.id}/retry`, {method: 'POST'});
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Retry failed.');
+            await loadDatasets(selected.id);
+          } catch (error) {
+            message.textContent = error.message;
+            retry.disabled = false;
+          }
+        });
+        documentState.append(message, retry);
+      }
     }
-    datasetSelect.addEventListener('change', updateDatasetMeta);
+    function selectDataset() {
+      resultSection.classList.remove('show');
+      answerText.textContent = '';
+      evidenceList.replaceChildren();
+      answerSources.classList.remove('show');
+      updateDatasetMeta();
+      localStorage.setItem('easyucxtractor.document', datasetSelect.value);
+    }
+    datasetSelect.addEventListener('change', selectDataset);
+
+    async function uploadPDF(file) {
+      if (uploading || !file) return;
+      uploadMessage.classList.remove('error-message');
+      if (!file.name.toLowerCase().endsWith('.pdf') || !file.size || file.size > 50 * 1024 * 1024) {
+        uploadMessage.textContent = 'Choose a PDF between 1 byte and 50 MB.';
+        uploadMessage.classList.add('error-message');
+        return;
+      }
+      uploading = true;
+      uploadButton.disabled = true;
+      uploadProgress.hidden = false;
+      uploadProgress.value = 0;
+      uploadMessage.textContent = 'Uploading PDF';
+      const request = new XMLHttpRequest();
+      request.open('POST', '/api/upload');
+      request.timeout = 120000;
+      request.setRequestHeader('Content-Type', 'application/pdf');
+      request.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+      request.upload.onprogress = event => {
+        if (event.lengthComputable) {
+          uploadProgress.value = Math.round(event.loaded / event.total * 100);
+          uploadMessage.textContent = `Uploading PDF · ${uploadProgress.value}%`;
+        }
+      };
+      function finish() {
+        uploading = false;
+        uploadButton.disabled = false;
+        uploadProgress.hidden = true;
+        pdfInput.value = '';
+      }
+      request.onload = async () => {
+        try {
+          const data = JSON.parse(request.responseText);
+          if (request.status >= 400) throw new Error(data.error || 'Upload failed.');
+          uploadMessage.textContent = data.reused
+            ? `Already saved · ${data.document.status}`
+            : 'PDF saved. Extraction queued.';
+          await loadDatasets(data.document.id);
+          selectDataset();
+        } catch (error) {
+          uploadMessage.textContent = error.message;
+          uploadMessage.classList.add('error-message');
+        } finally { finish(); }
+      };
+      request.onerror = request.ontimeout = () => {
+        uploadMessage.textContent = 'Upload interrupted. Check the local server and try again.';
+        uploadMessage.classList.add('error-message');
+        finish();
+      };
+      request.send(file);
+    }
+    uploadButton.addEventListener('click', () => pdfInput.click());
+    pdfInput.addEventListener('change', () => uploadPDF(pdfInput.files[0]));
+    uploadZone.addEventListener('dragover', event => {
+      event.preventDefault(); uploadZone.classList.add('dragging');
+    });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragging'));
+    uploadZone.addEventListener('drop', event => {
+      event.preventDefault(); uploadZone.classList.remove('dragging');
+      if (event.dataTransfer.files.length !== 1) {
+        uploadMessage.textContent = 'Upload one PDF at a time.';
+        return;
+      }
+      uploadPDF(event.dataTransfer.files[0]);
+    });
 
     function renderEvidence(items, mode) {
       evidenceList.replaceChildren();
@@ -330,6 +510,7 @@
       event.preventDefault();
       const question = questionInput.value.trim();
       if (!question) return;
+      const requestedDataset = datasetSelect.value;
       errorBox.classList.remove('show');
       askButton.disabled = true;
       askButton.querySelector('span').textContent = 'Searching…';
@@ -341,10 +522,11 @@
         const response = await fetch('/api/ask', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({question, dataset_id: datasetSelect.value, show_evidence: document.querySelector('#showEvidence').checked})
+          body: JSON.stringify({question, dataset_id: requestedDataset, show_evidence: document.querySelector('#showEvidence').checked})
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'The request failed.');
+        if (datasetSelect.value !== requestedDataset) return;
         answerBadge.textContent = data.mode === 'conversation'
           ? 'GENERAL CONVERSATION'
           : 'LOCAL MODEL + RETRIEVED EVIDENCE';
@@ -354,6 +536,7 @@
         details.open = document.querySelector('#showEvidence').checked;
         resultSection.scrollIntoView({behavior: 'smooth', block: 'start'});
       } catch (error) {
+        if (datasetSelect.value !== requestedDataset) return;
         resultSection.classList.remove('show');
         errorBox.textContent = error.message;
         errorBox.classList.add('show');
@@ -363,8 +546,9 @@
       }
     });
 
-    loadDatasets();
+    loadDatasets(localStorage.getItem('easyucxtractor.document'));
     loadStatus();
+    setInterval(() => loadDatasets(), 3000);
   </script>
 </body>
 </html>

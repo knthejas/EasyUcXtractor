@@ -37,6 +37,10 @@ Engineering answer
 
 ## Data Boundaries
 
+The web interface also supports a persistent upload library. `src/easyucxtractor/library.py` validates the PDF with PDFium, hashes its bytes, stores it under `data/library/<sha256>/`, and records metadata/status/output paths in SQLite. A transactional insert claims one processing job per hash; a single background worker invokes the existing extraction CLI's stages with library-specific output directories. Status becomes ready only after required files exist and the validation report passes. Restart recovery marks interrupted jobs as failed for explicit retry.
+
+`scripts/serve_app.py` exposes upload, list, status, retry, and question endpoints. It resolves an exact selected library ID to that document's knowledge and parameters files, or accepts an exact existing CLI dataset ID. The user cannot supply arbitrary paths. The UI polls processing status and discards answers belonging to a previously selected document. Standalone conversation messages continue to bypass retrieval.
+
 Datasheet PDFs are local inputs under `data/pdfs/` and are intentionally excluded from Git because vendor datasheets may be copyrighted or subject to distribution restrictions. Generated extraction and knowledge-base artifacts are also ignored by default. Each PDF has an output directory named from a normalized filename and a short content hash, reducing the risk that a different datasheet or revision overwrites unrelated results.
 
 The LLM receives only the user's question and the selected evidence records (including their existing source labels). It does not receive the full PDF, `output.json`, the entire knowledge base, or unselected records. Local Ollama inference uses `http://localhost:11434` by default and does not need an API key.

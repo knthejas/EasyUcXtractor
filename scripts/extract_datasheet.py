@@ -21,8 +21,21 @@ def resolve_pdf(argument: str) -> Path:
     return path
 
 
-def run_stage(stage: str, pdf_path: Path) -> None:
-    extracted_dir, knowledge_dir, _identifier = output_directories(pdf_path)
+def run_stage(stage: str, pdf_path: Path, extracted_dir: Path | None = None,
+              knowledge_dir: Path | None = None) -> None:
+    if extracted_dir is not None:
+        from easyucxtractor.library import document_stage_lock
+        with document_stage_lock(extracted_dir.parent):
+            execute_stage(stage, pdf_path, extracted_dir, knowledge_dir)
+    else:
+        execute_stage(stage, pdf_path, extracted_dir, knowledge_dir)
+
+
+def execute_stage(stage: str, pdf_path: Path, extracted_dir: Path | None = None,
+                  knowledge_dir: Path | None = None) -> None:
+    default_extracted, default_knowledge, _identifier = output_directories(pdf_path)
+    extracted_dir = extracted_dir or default_extracted
+    knowledge_dir = knowledge_dir or default_knowledge
     extracted_dir.mkdir(parents=True, exist_ok=True)
     knowledge_dir.mkdir(parents=True, exist_ok=True)
     if stage == "extract":
@@ -76,11 +89,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--_stage", choices=("extract", "figures", "knowledge", "parameters", "validate"),
                         help=argparse.SUPPRESS)
     parser.add_argument("--_pdf", help=argparse.SUPPRESS)
+    parser.add_argument("--_extracted", help=argparse.SUPPRESS)
+    parser.add_argument("--_knowledge", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args._stage:
         if not args._pdf:
             parser.error("Internal stage requires a PDF path")
-        run_stage(args._stage, resolve_pdf(args._pdf))
+        run_stage(args._stage, resolve_pdf(args._pdf),
+              Path(args._extracted) if args._extracted else None,
+              Path(args._knowledge) if args._knowledge else None)
         return 0
     if args.pdfs:
         pdf_paths = [resolve_pdf(arg) for arg in args.pdfs]
